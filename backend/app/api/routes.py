@@ -3,14 +3,25 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 import redis.asyncio as redis
 
 from backend.app.core.config import get_settings
 from backend.app.db.session import SessionLocal
 from backend.app.models import models
-from backend.app.schemas.schemas import AlertOut, FindingOut, Paginated, ResourceOut, ScanRunOut
+from backend.app.schemas.schemas import (
+    AIRequest,
+    AIResponse,
+    AlertOut,
+    FindingOut,
+    Paginated,
+    ResourceOut,
+    ScanRunOut,
+    SeverityBreakdown,
+)
 from backend.app.services.events import publish_alert_event, publish_scan_event
+from backend.app.services import ai
 from backend.app.services.tasks import enqueue_fixture_scan
 
 settings = get_settings()
@@ -56,6 +67,15 @@ async def list_findings(db: Session = Depends(get_db)):
         for f in items
     ]
     return {'items': payload}
+
+
+@router.get('/findings/summary', response_model=SeverityBreakdown)
+async def findings_breakdown(db: Session = Depends(get_db)):
+    counts: dict[str, int] = {}
+    for severity, count in db.query(models.Finding.severity, func.count(models.Finding.id)).group_by(models.Finding.severity):
+        counts[severity] = count
+    total = sum(counts.values())
+    return {'total': total, 'by_severity': counts}
 
 
 @router.get('/scans', response_model=Paginated)
@@ -169,3 +189,41 @@ async def alert_updates(websocket: WebSocket):
     finally:
         await pubsub.unsubscribe('alerts')
         await client.aclose()
+
+
+@router.post('/ai/explain', response_model=AIResponse)
+async def ai_explain(request: AIRequest, db: Session = Depends(get_db)):
+    if not request.finding_id:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    result = ai.explain_finding(db, request.finding_id)
+    if not result:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    return result
+
+
+@router.post('/ai/correlate', response_model=AIResponse)
+async def ai_correlate(request: AIRequest, db: Session = Depends(get_db)):
+    if not request.finding_id:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    result = ai.correlate_finding(db, request.finding_id)
+    if not result:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    return result
+
+
+@router.post('/ai/investigate', response_model=AIResponse)
+async def ai_investigate(request: AIRequest, db: Session = Depends(get_db)):
+    if not request.cve_id:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    result = ai.investigate_cve(db, request.cve_id)
+    return result
+
+
+@router.post('/ai/remediation', response_model=AIResponse)
+async def ai_remediation(request: AIRequest, db: Session = Depends(get_db)):
+    if not request.finding_id:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    result = ai.remediation_plan(db, request.finding_id)
+    if not result:
+        return {'session_id': '', 'audit_id': '', 'response': {}}
+    return result

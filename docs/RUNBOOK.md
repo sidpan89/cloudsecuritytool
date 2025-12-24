@@ -44,3 +44,12 @@ This enqueues a Celery task; monitor scan events over the scans WebSocket channe
 ```bash
 curl -X POST http://localhost:8000/api/alerts -H 'Content-Type: application/json' -d @fixtures/falco/sample.json
 ```
+
+## Exercise AI helpers (stubbed)
+```bash
+# Replace <finding_uuid> with a known finding id from the database
+curl -X POST http://localhost:8000/api/ai/explain -H 'Content-Type: application/json' -d '{"finding_id":"<finding_uuid>"}'
+curl -X POST http://localhost:8000/api/ai/correlate -H 'Content-Type: application/json' -d '{"finding_id":"<finding_uuid>"}'
+curl -X POST http://localhost:8000/api/ai/remediation -H 'Content-Type: application/json' -d '{"finding_id":"<finding_uuid>"}'
+curl -X POST http://localhost:8000/api/ai/investigate -H 'Content-Type: application/json' -d '{"cve_id":"CVE-2023-0001"}'
+```

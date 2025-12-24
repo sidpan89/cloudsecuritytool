@@ -53,3 +53,19 @@ class ResourceOut(BaseModel):
 
 class Paginated(BaseModel):
     items: list
+
+
+class SeverityBreakdown(BaseModel):
+    total: int
+    by_severity: dict[str, int]
+
+
+class AIRequest(BaseModel):
+    finding_id: UUID | None = None
+    cve_id: str | None = None
+
+
+class AIResponse(BaseModel):
+    session_id: str
+    audit_id: str
+    response: dict
