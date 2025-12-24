@@ -1,0 +1,10 @@
+{
+  "Results": [
+    {
+      "Target": "demo-image:latest",
+      "Vulnerabilities": [
+        {"VulnerabilityID": "CVE-1234", "Severity": "MEDIUM", "Title": "Lib issue"}
+      ]
+    }
+  ]
+}
