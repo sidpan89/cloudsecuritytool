@@ -14,6 +14,16 @@ docker compose up --build
    - Celery worker is started by compose and processes fixture scans asynchronously via Redis.
    - WebSocket endpoints for scan and alert streaming: `ws://localhost:8000/api/ws/scans` and `ws://localhost:8000/api/ws/alerts`.
 
+### Using the upstream Aura Guard frontend
+If you want to run the UI from https://github.com/sidpan89/aura-guard instead of the in-repo frontend, fetch it and point the compose service at it:
+
+```bash
+make fetch-frontend   # or bash scripts/fetch_external_frontend.sh
+echo "FRONTEND_DIR=external/aura-guard" >> .env
+docker compose up --build frontend
+```
+The compose frontend container will `cd $FRONTEND_DIR` before installing dependencies and starting Vite, so the external UI will be served on port 4173.
+
 ## Local Backend Dev
 ```bash
 python -m venv .venv
