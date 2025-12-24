@@ -3,18 +3,28 @@ from pathlib import Path
 from uuid import uuid4
 from datetime import datetime
 from sqlalchemy.orm import Session
+
 from adapters.registry import ADAPTERS
 from backend.app.models import models
+from backend.app.services.events import publish_scan_event
 from backend.app.services.utils import normalize_resource_id
 
 
-def ingest_fixture(db: Session, scan: models.ScanRun):
+def ingest_fixture(db: Session, scan_id: str):
+    scan = db.query(models.ScanRun).get(scan_id)
+    if not scan:
+        return
     adapter = ADAPTERS.get(scan.tool)
     if not adapter:
         scan.status = 'error'
         scan.error = 'adapter not found'
         db.commit()
+        publish_scan_event({'scan_id': scan_id, 'status': 'error', 'error': scan.error})
         return
+    scan.status = 'running'
+    scan.started_at = datetime.utcnow()
+    db.commit()
+    publish_scan_event({'scan_id': scan_id, 'status': 'running', 'tool': scan.tool})
     fixture_path = Path('fixtures') / scan.tool / 'sample.json'
     payload = json.loads(fixture_path.read_text())
     records = adapter.parse(payload)
@@ -44,3 +54,9 @@ def ingest_fixture(db: Session, scan: models.ScanRun):
     scan.status = 'completed'
     scan.finished_at = datetime.utcnow()
     db.commit()
+    publish_scan_event({
+        'scan_id': scan_id,
+        'status': 'completed',
+        'tool': scan.tool,
+        'finished_at': scan.finished_at.isoformat() if scan.finished_at else None,
+    })

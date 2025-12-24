@@ -1,11 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
+
+import redis.asyncio as redis
+
+from backend.app.core.config import get_settings
 from backend.app.db.session import SessionLocal
 from backend.app.models import models
-from backend.app.schemas.schemas import Paginated, ScanRunOut, FindingOut, AlertOut, ResourceOut
-from uuid import uuid4
-from datetime import datetime
+from backend.app.schemas.schemas import AlertOut, FindingOut, Paginated, ResourceOut, ScanRunOut
+from backend.app.services.events import publish_alert_event, publish_scan_event
+from backend.app.services.tasks import enqueue_fixture_scan
 
+settings = get_settings()
 router = APIRouter(prefix='/api')
 
 
@@ -74,10 +82,8 @@ async def create_scan(body: dict, db: Session = Depends(get_db)):
     db.add(scan)
     db.commit()
     db.refresh(scan)
-    # Worker integration stub: just mark completed and ingest fixture synchronously for now
-    from backend.app.services.ingest import ingest_fixture
-    ingest_fixture(db, scan)
-    db.refresh(scan)
+    publish_scan_event({'scan_id': str(scan.id), 'status': 'queued', 'tool': scan.tool})
+    enqueue_fixture_scan(str(scan.id))
     return ScanRunOut.from_orm(scan)
 
 
@@ -111,6 +117,14 @@ async def ingest_alert(alert: dict, db: Session = Depends(get_db)):
     )
     db.add(item)
     db.commit()
+    publish_alert_event({
+        'id': str(item.id),
+        'severity': item.severity,
+        'message': item.message,
+        'event_type': item.event_type,
+        'occurred_at': item.occurred_at.isoformat(),
+        'source_tool': item.source_tool,
+    })
     return {'id': str(item.id)}
 
 
@@ -121,3 +135,37 @@ async def list_resources(db: Session = Depends(get_db)):
         ResourceOut(id=r.id, name=r.name, type=r.type, provider=r.provider, region=r.region) for r in items
     ]
     return {'items': payload}
+
+
+@router.websocket('/ws/scans')
+async def scan_updates(websocket: WebSocket):
+    await websocket.accept()
+    client = redis.from_url(settings.redis_url, decode_responses=True)
+    pubsub = client.pubsub()
+    await pubsub.subscribe('scans')
+    try:
+        async for message in pubsub.listen():
+            if message['type'] == 'message':
+                await websocket.send_text(message['data'])
+    except WebSocketDisconnect:
+        await websocket.close()
+    finally:
+        await pubsub.unsubscribe('scans')
+        await client.aclose()
+
+
+@router.websocket('/ws/alerts')
+async def alert_updates(websocket: WebSocket):
+    await websocket.accept()
+    client = redis.from_url(settings.redis_url, decode_responses=True)
+    pubsub = client.pubsub()
+    await pubsub.subscribe('alerts')
+    try:
+        async for message in pubsub.listen():
+            if message['type'] == 'message':
+                await websocket.send_text(message['data'])
+    except WebSocketDisconnect:
+        await websocket.close()
+    finally:
+        await pubsub.unsubscribe('alerts')
+        await client.aclose()

@@ -41,8 +41,10 @@ services:
     build: ./worker
     environment:
       REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/aura
     depends_on:
       - redis
+      - postgres
 
   frontend:
     image: node:20

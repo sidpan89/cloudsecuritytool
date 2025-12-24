@@ -11,6 +11,8 @@
 docker compose up --build
 ```
 3. Frontend available at http://localhost:4173, backend at http://localhost:8000/api.
+   - Celery worker is started by compose and processes fixture scans asynchronously via Redis.
+   - WebSocket endpoints for scan and alert streaming: `ws://localhost:8000/api/ws/scans` and `ws://localhost:8000/api/ws/alerts`.
 
 ## Local Backend Dev
 ```bash
@@ -26,6 +28,7 @@ Use UI Scans page or:
 ```bash
 curl -X POST http://localhost:8000/api/scans -H 'Content-Type: application/json' -d '{"tool":"prowler","fixture":true}'
 ```
+This enqueues a Celery task; monitor scan events over the scans WebSocket channel.
 
 ## Ingest Falco Alert
 ```bash
