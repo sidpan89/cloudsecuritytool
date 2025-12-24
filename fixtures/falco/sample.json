@@ -1,0 +1,7 @@
+{
+  "source": "falco",
+  "severity": "critical",
+  "message": "Unexpected privilege escalation",
+  "event_type": "process",
+  "resource": "k8s://cluster/ns/pod"
+}

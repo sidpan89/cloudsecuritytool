@@ -1,0 +1,13 @@
+{
+  "Findings": [
+    {
+      "Id": "prowler-1",
+      "Title": "S3 bucket public",
+      "Severity": "high",
+      "Service": "s3",
+      "ResourceId": "arn:aws:s3:::demo-bucket",
+      "Description": "Bucket allows public read",
+      "Category": "cspm"
+    }
+  ]
+}
