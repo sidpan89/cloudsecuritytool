@@ -30,3 +30,11 @@ If you do not see these files on your GitHub repository yet, push the current wo
 5. After the push completes, refresh the GitHub page for your repository—the files from this workspace will now appear in that branch.
 
 If Git prompts for authentication, use an SSH key or a GitHub personal access token as appropriate for your account.
+
+### If you prefer to use the GitHub UI (no commands)
+This environment cannot push to your GitHub account automatically. To publish without running any commands locally:
+
+1. On GitHub, create a new empty repository (set the default branch to `main` to match this workspace).
+2. Open the repository and choose **Add file → Upload files**.
+3. Drag the entire project folder from your machine into the upload area (GitHub supports folder uploads). Wait for the file list to finish rendering.
+4. Enter a commit message and click **Commit changes**. Your files will now be on the `main` branch of the new repository.
